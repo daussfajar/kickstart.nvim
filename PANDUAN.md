@@ -116,8 +116,16 @@ menemukan fitur.
 └────────────────────────────────────────────────────────────┘
 ```
 
-- **Welcome screen**: muncul saat `nvim` dibuka tanpa file. Tekan huruf pertama
-  dari menu (misal `O` untuk *Open file*) atau pilih dengan panah + Enter.
+- **Welcome screen**: muncul saat `nvim` dibuka tanpa file. Isinya menu **Start**
+  (file baru, buka file, cari, explorer, settings, panduan, update plugin) dan
+  daftar **Recent** (file yang terakhir dibuka di folder ini). Cara memilih:
+  - tekan tombol di kotak sebelah kiri item, misal `o` untuk *Open File...*
+    atau `1` untuk file recent pertama,
+  - atau pilih dengan `↑`/`↓` (atau `j`/`k`) lalu `Enter`,
+  - atau klik item dengan mouse.
+
+  Tekan `g` di welcome screen untuk membuka panduan ini. Kalau terminal kecil,
+  logo disembunyikan otomatis supaya semua menu tetap muat.
 - **Tema**: warna "Dark Modern" VS Code.
 - **Tanda Git** di kiri nomor baris: `+` baris baru, `~` baris diubah, `_` baris dihapus.
 
@@ -306,7 +314,8 @@ lengkapnya ada di `:Tutor`.
 | :-- | :-- |
 | [`init.lua`](init.lua) | Konfigurasi utama: opsi, tema, pencarian, LSP, format, autocomplete |
 | [`lua/custom/keymaps.lua`](lua/custom/keymaps.lua) | Semua shortcut ala VS Code |
-| [`lua/custom/plugins/ui.lua`](lua/custom/plugins/ui.lua) | Tab, breadcrumbs, welcome screen |
+| [`lua/custom/plugins/ui.lua`](lua/custom/plugins/ui.lua) | Tab dan breadcrumbs |
+| [`lua/custom/plugins/welcome.lua`](lua/custom/plugins/welcome.lua) | Welcome screen (menu, logo, tips) |
 | [`lua/custom/plugins/explorer.lua`](lua/custom/plugins/explorer.lua) | Sidebar explorer |
 | [`lua/custom/plugins/terminal.lua`](lua/custom/plugins/terminal.lua) | Terminal dan Lazygit |
 | [`lua/custom/plugins/editor.lua`](lua/custom/plugins/editor.lua) | Multi-cursor, pindah baris, auto-tag HTML, search & replace |
@@ -342,7 +351,7 @@ Prettier, bahasa lain oleh language server-nya.
 
 ## 7. Update plugin
 
-Pilih **Update plugins** di welcome screen (atau jalankan `:lua vim.pack.update()`).
+Pilih **Update Plugins** di welcome screen (tombol `u`) (atau jalankan `:lua vim.pack.update()`).
 Akan muncul daftar perubahan: ketik `:w` untuk menyetujui, atau `:q` untuk batal.
 
 Language server di-update lewat `:Mason`, lalu tekan `U`.

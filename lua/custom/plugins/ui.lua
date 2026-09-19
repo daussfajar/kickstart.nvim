@@ -1,4 +1,4 @@
--- VS Code-like UI: editor tabs, breadcrumbs and a welcome screen
+-- VS Code-like UI: editor tabs and breadcrumbs
 
 -- [[ Editor tabs ]]
 -- Shows open files as tabs at the top of the screen.
@@ -32,38 +32,4 @@ require('bufferline').setup {
 vim.pack.add { 'https://github.com/Bekaboo/dropbar.nvim' }
 vim.keymap.set('n', '<leader>;', function() require('dropbar.api').pick() end, { desc = 'Pick symbol in breadcrumbs' })
 
--- [[ Welcome screen ]]
--- Shown when Neovim is started without opening a file.
---  Press the first letter of an item (or move with the arrow keys and press <Enter>) to run it.
---  See `:help mini.starter`
-local starter = require 'mini.starter'
-local config_dir = vim.fn.stdpath 'config'
-starter.setup {
-  evaluate_single = true,
-  items = {
-    { section = 'Start', name = 'New file              Ctrl+N', action = 'enew' },
-    { section = 'Start', name = 'Open file             Ctrl+P', action = 'Telescope find_files' },
-    { section = 'Start', name = 'Find in files         Ctrl+Shift+F', action = 'Telescope live_grep' },
-    { section = 'Start', name = 'Recent files', action = 'Telescope oldfiles' },
-    { section = 'Start', name = 'Explorer              Ctrl+B', action = 'Neotree show' },
-    { section = 'Start', name = 'Configuration', action = function() require('telescope.builtin').find_files { cwd = config_dir } end },
-    { section = 'Start', name = 'Update plugins', action = 'lua vim.pack.update()' },
-    { section = 'Start', name = 'Quit                  Ctrl+Q', action = 'qall' },
-    starter.sections.recent_files(5, true, false),
-  },
-  content_hooks = {
-    starter.gen_hook.adding_bullet(),
-    starter.gen_hook.aligning('center', 'center'),
-  },
-}
-
--- The welcome screen uses Ctrl+P/Ctrl+N to move between items (the arrow keys do that too),
--- so bring back the VS Code shortcuts shown next to the items.
-vim.api.nvim_create_autocmd('User', {
-  pattern = 'MiniStarterOpened',
-  group = vim.api.nvim_create_augroup('custom-starter-keymaps', { clear = true }),
-  callback = function()
-    vim.keymap.set('n', '<C-p>', function() require('telescope.builtin').find_files() end, { buffer = 0, desc = 'Go to file (Quick Open)' })
-    vim.keymap.set('n', '<C-n>', '<Cmd>enew<CR>', { buffer = 0, desc = 'New file' })
-  end,
-})
+-- NOTE: The welcome screen is configured in `lua/custom/plugins/welcome.lua`
