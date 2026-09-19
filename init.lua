@@ -171,6 +171,36 @@ do
   -- instead raise a dialog asking if you wish to save the current file(s)
   -- See `:help 'confirm'`
   vim.o.confirm = true
+
+  -- [[ VS Code-like options ]]
+  -- Indent with 4 spaces by default, like VS Code. `guess-indent` still adapts
+  -- this per file based on the file's existing indentation.
+  vim.o.expandtab = true
+  vim.o.shiftwidth = 4
+  vim.o.tabstop = 4
+
+  -- A single statusline at the bottom for all windows, like VS Code's status bar
+  vim.o.laststatus = 3
+
+  -- Hide the `~` markers on the empty lines after the end of a file
+  vim.opt.fillchars = { eob = ' ' }
+
+  -- Scroll wrapped lines smoothly instead of jumping over them
+  vim.o.smoothscroll = true
+
+  -- Report mouse movement, so bufferline can show the close button when hovering a tab
+  vim.o.mousemoveevent = true
+
+  -- Code folding based on treesitter, with every fold open when a file is opened.
+  --  `za` toggles the fold under the cursor, `zR` opens all folds, `zM` closes all folds.
+  --  See `:help folds`
+  vim.o.foldmethod = 'expr'
+  vim.o.foldexpr = 'v:lua.vim.treesitter.foldexpr()'
+  vim.o.foldlevel = 99
+  vim.o.foldlevelstart = 99
+
+  -- Reload files that were changed outside of Neovim (see the autocommand below)
+  vim.o.autoread = true
 end
 
 -- ============================================================
@@ -250,6 +280,15 @@ do
     desc = 'Highlight when yanking (copying) text',
     group = vim.api.nvim_create_augroup('kickstart-highlight-yank', { clear = true }),
     callback = function() vim.hl.on_yank() end,
+  })
+
+  -- Check for changes made outside of Neovim (e.g. by `git checkout`) when coming back to a file
+  vim.api.nvim_create_autocmd({ 'FocusGained', 'BufEnter' }, {
+    desc = 'Reload files changed outside of Neovim',
+    group = vim.api.nvim_create_augroup('kickstart-autoread', { clear = true }),
+    callback = function()
+      if vim.o.buftype ~= 'nofile' and vim.fn.getcmdwintype() == '' then vim.cmd.checktime() end
+    end,
   })
 end
 
@@ -413,6 +452,8 @@ do
       { '<leader>s', group = '[S]earch', mode = { 'n', 'v' } },
       { '<leader>t', group = '[T]oggle' },
       { '<leader>h', group = 'Git [H]unk', mode = { 'n', 'v' } }, -- Enable gitsigns recommended keymaps first
+      { '<leader>g', group = '[G]it' },
+      { '<leader>c', group = '[C]ode', mode = { 'n', 'x' } },
       { 'gr', group = 'LSP Actions', mode = { 'n' } },
     },
   }
@@ -431,10 +472,18 @@ do
     },
   }
 
+  -- The colors of VS Code's default "Dark Modern" theme.
+  --  Use `style = 'light'` for VS Code's light theme.
+  vim.pack.add { gh 'Mofiqul/vscode.nvim' }
+  require('vscode').setup {
+    style = 'dark',
+    italic_comments = false,
+  }
+
   -- Load the colorscheme here.
-  -- Like many other themes, this one has different styles, and you could load
-  -- any other, such as 'tokyonight-storm', 'tokyonight-moon', or 'tokyonight-day'.
-  vim.cmd.colorscheme 'tokyonight-night'
+  -- To go back to the kickstart default, use 'tokyonight-night' (or 'tokyonight-storm',
+  -- 'tokyonight-moon', 'tokyonight-day') instead of 'vscode'.
+  vim.cmd.colorscheme 'vscode'
 
   -- Highlight todo, notes, etc in comments
   vim.pack.add { gh 'folke/todo-comments.nvim' }
@@ -541,6 +590,22 @@ do
     --   },
     -- },
     -- pickers = {}
+
+    -- Make Telescope look and behave like VS Code's Quick Open:
+    --  search box at the top, file name before its folder, and <Esc> closes it right away.
+    defaults = {
+      sorting_strategy = 'ascending',
+      layout_config = { prompt_position = 'top' },
+      path_display = { 'filename_first' },
+      mappings = {
+        i = { ['<Esc>'] = 'close' },
+      },
+    },
+    pickers = {
+      -- Also find dotfiles such as `.env`, but skip anything inside `.git/` (and `.gitignore`d files)
+      find_files = { find_command = { 'rg', '--files', '--hidden', '--glob', '!**/.git/*' } },
+      live_grep = { additional_args = { '--hidden', '--glob', '!**/.git/*' } },
+    },
     extensions = {
       ['ui-select'] = { require('telescope.themes').get_dropdown() },
     },
@@ -744,6 +809,23 @@ do
     -- But for many setups, the LSP (`rust_analyzer`) will work just fine
     -- rust_analyzer = {},
 
+    -- Web development: JavaScript/TypeScript, HTML, CSS, JSON and Emmet (like VS Code's built-in support)
+    ts_ls = {},
+    html = {},
+    cssls = {},
+    jsonls = {},
+    emmet_language_server = {},
+
+    -- Python: pyright for types/completion, ruff for linting/formatting
+    pyright = {},
+    ruff = {},
+
+    -- Go
+    gopls = {},
+
+    -- PHP
+    intelephense = {},
+
     stylua = {}, -- Used to format Lua code
 
     -- Special Lua Config, as recommended by neovim help docs
@@ -804,6 +886,7 @@ do
   local ensure_installed = vim.tbl_keys(servers or {})
   vim.list_extend(ensure_installed, {
     -- You can add other tools here that you want Mason to install
+    'prettier', -- Used to format JavaScript, TypeScript, CSS, HTML, JSON, YAML and Markdown
   })
 
   require('mason-tool-installer').setup { ensure_installed = ensure_installed }
@@ -821,15 +904,23 @@ end
 do
   -- [[ Formatting ]]
   vim.pack.add { gh 'stevearc/conform.nvim' }
+
+  -- Like VS Code's "Format On Save" setting: off by default, toggle it with <leader>tf
+  vim.g.format_on_save = false
+  vim.keymap.set('n', '<leader>tf', function()
+    vim.g.format_on_save = not vim.g.format_on_save
+    vim.notify('Format on save: ' .. (vim.g.format_on_save and 'ON' or 'OFF'))
+  end, { desc = '[T]oggle [F]ormat on save' })
+
   require('conform').setup {
     notify_on_error = false,
     format_on_save = function(bufnr)
-      -- You can specify filetypes to autoformat on save here:
+      -- You can specify filetypes to always autoformat on save here:
       local enabled_filetypes = {
         -- lua = true,
         -- python = true,
       }
-      if enabled_filetypes[vim.bo[bufnr].filetype] then
+      if vim.g.format_on_save or enabled_filetypes[vim.bo[bufnr].filetype] then
         return { timeout_ms = 500 }
       else
         return nil
@@ -846,6 +937,18 @@ do
       --
       -- You can use 'stop_after_first' to run the first available formatter from the list
       -- javascript = { "prettierd", "prettier", stop_after_first = true },
+      javascript = { 'prettier' },
+      javascriptreact = { 'prettier' },
+      typescript = { 'prettier' },
+      typescriptreact = { 'prettier' },
+      vue = { 'prettier' },
+      css = { 'prettier' },
+      scss = { 'prettier' },
+      html = { 'prettier' },
+      json = { 'prettier' },
+      jsonc = { 'prettier' },
+      yaml = { 'prettier' },
+      markdown = { 'prettier' },
     },
   }
 
@@ -868,8 +971,9 @@ do
   --    See the README about individual language/framework/plugin snippets:
   --    https://github.com/rafamadriz/friendly-snippets
   --
-  -- vim.pack.add { gh 'rafamadriz/friendly-snippets' }
-  -- require('luasnip.loaders.from_vscode').lazy_load()
+  -- These are the same snippets that VS Code extensions provide.
+  vim.pack.add { gh 'rafamadriz/friendly-snippets' }
+  require('luasnip.loaders.from_vscode').lazy_load()
 
   -- [[ Autocomplete Engine ]]
   vim.pack.add { { src = gh 'saghen/blink.cmp', version = vim.version.range '1.*' } }
@@ -896,7 +1000,10 @@ do
       -- <c-k>: Toggle signature help
       --
       -- See `:help blink-cmp-config-keymap` for defining your own keymap
-      preset = 'default',
+      --
+      -- Like VS Code, we use 'super-tab' and additionally accept with <Enter>.
+      preset = 'super-tab',
+      ['<CR>'] = { 'accept', 'fallback' },
 
       -- For more advanced Luasnip keymaps (e.g. selecting choice nodes, expansion) see:
       --    https://github.com/L3MON4D3/LuaSnip?tab=readme-ov-file#keymaps
@@ -911,11 +1018,12 @@ do
     completion = {
       -- By default, you may press `<c-space>` to show the documentation.
       -- Optionally, set `auto_show = true` to show the documentation after a delay.
-      documentation = { auto_show = false, auto_show_delay_ms = 500 },
+      documentation = { auto_show = true, auto_show_delay_ms = 300 },
     },
 
     sources = {
-      default = { 'lsp', 'path', 'snippets' },
+      -- 'buffer' suggests words from open files, like VS Code's word-based suggestions
+      default = { 'lsp', 'path', 'snippets', 'buffer' },
     },
 
     snippets = { preset = 'luasnip' },
@@ -948,7 +1056,29 @@ do
   vim.pack.add { { src = gh 'nvim-treesitter/nvim-treesitter', version = 'main' } }
 
   -- Ensure basic parsers are installed
-  local parsers = { 'bash', 'c', 'diff', 'html', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'vim', 'vimdoc' }
+  --  (parsers for other languages are installed automatically when you open such a file)
+  local parsers = {
+    'bash',
+    'c',
+    'css',
+    'diff',
+    'go',
+    'html',
+    'javascript',
+    'json',
+    'lua',
+    'luadoc',
+    'markdown',
+    'markdown_inline',
+    'php',
+    'python',
+    'query',
+    'tsx',
+    'typescript',
+    'vim',
+    'vimdoc',
+    'yaml',
+  }
   require('nvim-treesitter').install(parsers)
 
   ---@param buf integer
@@ -1015,15 +1145,20 @@ do
   --  Uncomment any of the lines below to enable them (you will need to restart nvim).
   --
   -- require 'kickstart.plugins.debug'
-  -- require 'kickstart.plugins.indent_line'
+  require 'kickstart.plugins.indent_line'
   -- require 'kickstart.plugins.lint'
-  -- require 'kickstart.plugins.autopairs'
+  require 'kickstart.plugins.autopairs'
+  -- NOTE: neo-tree (the file explorer) is configured in `lua/custom/plugins/explorer.lua` instead
   -- require 'kickstart.plugins.neo-tree'
 
   -- NOTE: You can add your own plugins, configuration, etc. in `lua/custom/plugins/*.lua`.
   --
   -- For independent modules, uncomment the convenience loader:
-  -- require 'custom.plugins'
+  require 'custom.plugins'
+
+  -- VS Code keyboard shortcuts (Ctrl+S, Ctrl+P, Ctrl+/, ...).
+  --  Loaded last so they can use every plugin above. See `PANDUAN.md` for the full list.
+  require 'custom.keymaps'
   --
   -- `custom.plugins` automatically loads files from that directory, but their
   -- order is unspecified. If plugins depend on each other, keep them in the same
